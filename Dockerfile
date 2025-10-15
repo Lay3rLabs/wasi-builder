@@ -12,7 +12,8 @@ ARG WKG_VERSION
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:/usr/local/rustup/bin:$PATH \
-    CARGO_TERM_COLOR=never
+    CARGO_TERM_COLOR=never \
+    UMASK=022
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -30,9 +31,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo install --locked cargo-component@${CARGO_COMPONENT_VERSION} \
     && cargo install --locked wasm-tools@${WASM_TOOLS_VERSION} \
     && cargo install --locked wkg@${WKG_VERSION}
-
-# Set umask for reproducible file permissions
-RUN umask 022
 
 WORKDIR /docker
 COPY entrypoint.sh /usr/local/bin/entrypoint

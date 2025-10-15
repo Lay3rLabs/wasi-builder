@@ -27,7 +27,9 @@ tasks:
         msg: "This task can only run on Linux (current OS: {{OS}})"
     vars:
       IS_LOCAL: '{{.IS_LOCAL | default "true"}}'
-      VERSION: '{{.VERSION | default "latest"}}'
+      VERSION: '{{.VERSION | default "local"}}'
+      CACHE_FROM: '{{.CACHE_FROM | default ""}}'
+      CACHE_TO: '{{.CACHE_TO | default ""}}'
     cmds:
       - |
         # Check if version is a git hash (7 characters, alphanumeric)
@@ -49,6 +51,16 @@ tasks:
           PUSH_FLAG="--push"
         fi
 
+        CACHE_FROM_FLAG=""
+        if [ -n "{{.CACHE_FROM}}" ]; then
+          CACHE_FROM_FLAG="--cache-from {{.CACHE_FROM}}"
+        fi
+
+        CACHE_TO_FLAG=""
+        if [ -n "{{.CACHE_TO}}" ]; then
+          CACHE_TO_FLAG="--cache-to {{.CACHE_TO}}"
+        fi
+
         docker buildx build \
           $PLATFORM_FLAG \
           $TAGS \
@@ -56,6 +68,8 @@ tasks:
           --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}} \
           --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}} \
           --build-arg WKG_VERSION={{.WKG_VERSION}} \
+          $CACHE_FROM_FLAG \
+          $CACHE_TO_FLAG \
           $LOAD_FLAG \
           $PUSH_FLAG \
           -f {{.DOCKERFILE}} docker
@@ -74,7 +88,7 @@ tasks:
   test:
     desc: Test the built Docker image
     vars:
-      VERSION: '{{.version | default "latest"}}'
+      VERSION: '{{.version | default "local"}}'
       TEST_DIR: /tmp/wasi-test
     cmds:
       - task: test:setup

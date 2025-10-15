@@ -5,6 +5,9 @@ set -euo pipefail
 export LC_ALL=C
 export LANG=C
 
+# Ensure deterministic file permissions inside the container
+umask "${UMASK:-022}"
+
 # Production-ready WASI component builder
 # Exit codes:
 # 1 - Usage error
