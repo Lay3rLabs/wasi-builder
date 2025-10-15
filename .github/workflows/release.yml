@@ -21,9 +21,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract version from release tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: Set VERSION
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(git rev-parse --short $GITHUB_SHA)
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Install Task
         uses: arduino/setup-task@v2
@@ -43,10 +48,4 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            # For tag pushes, use the tag version
-            task build IS_LOCAL=false VERSION=${{ env.VERSION }}
-          else
-            # For main branch pushes, don't specify version (defaults to latest)
-            task build IS_LOCAL=false
-          fi
+          task build IS_LOCAL=false VERSION=${{ env.VERSION }}

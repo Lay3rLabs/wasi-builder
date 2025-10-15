@@ -30,10 +30,11 @@ tasks:
       VERSION: '{{.VERSION | default "latest"}}'
     cmds:
       - |
-        if [ -n "{{.version}}" ]; then
-          TAGS="--tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.version}} --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:latest"
+        # Check if version is a git hash (7 characters, alphanumeric)
+        if [[ "{{.VERSION}}" =~ ^[a-f0-9]{7}$ ]]; then
+          TAGS="--tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}} --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:latest"
         else
-          TAGS="--tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:latest"
+          TAGS="--tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}"
         fi
 
         if [ "{{.IS_LOCAL}}" = "true" ]; then
