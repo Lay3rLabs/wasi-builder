@@ -1,0 +1,57 @@
+# WASI Builder
+
+A Docker-based builder for creating [WASI (WebAssembly System Interface)](https://wasi.dev/) components from Rust source code using the [cargo-component](https://github.com/bytecodealliance/cargo-component) tool.
+
+## Features
+
+- Builds WASI components from Rust crates
+- Supports both debug and release modes
+- Secure sandboxed build environment
+- Reproducible builds with fixed versions
+- Multi-architecture support (amd64, arm64)
+
+## Development
+
+```bash
+# Install Task (if not already installed)
+curl -sL https://taskfile.dev/install.sh | sh
+
+# Setup buildx for multi-arch builds
+task setup-buildx
+
+# Clean up buildx
+task clean
+```
+
+## Quick Start
+
+```bash
+# Build the Docker image
+task build
+
+# Test the build
+task test
+```
+
+## Usage
+
+The container expects your Rust component to be mounted at `/docker/<component-name>` and will output built WASM files to the specified directory.
+
+### Container Arguments
+
+```
+entrypoint <component-path> --out-dir <output-path> [--debug]
+```
+
+- `component-path`: Relative path to your Rust component (from `/docker`)
+- `--out-dir`: Output directory for WASM artifacts
+- `--debug`: Build in debug mode (default: release)
+
+## Build Targets
+
+- Target: `wasm32-wasip1`
+- Output: `.wasm` files compatible with WASI runtime
+
+## License
+
+This project is part of the [Lay3rLabs](https://github.com/Lay3rLabs) ecosystem.
