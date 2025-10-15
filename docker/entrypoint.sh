@@ -289,11 +289,33 @@ verify_output() {
 
     local total_size=0
     local file_count=0
+
+    # Check if any WASM files exist first
+    local wasm_files
+    wasm_files=$(find "$dest_dir" -maxdepth 1 -type f -name '*.wasm' | head -1)
+    if [[ -z "$wasm_files" ]]; then
+        log_error "No WASM files found in output directory after successful build"
+        exit 4
+    fi
+
     while IFS= read -r -d '' file; do
-        local size
-        size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
+        local size=0
+        # Try different stat syntaxes
+        if command -v stat >/dev/null 2>&1; then
+            if stat -c%s "$file" >/dev/null 2>&1; then
+                size=$(stat -c%s "$file" 2>/dev/null)
+            elif stat -f%z "$file" >/dev/null 2>&1; then
+                size=$(stat -f%z "$file" 2>/dev/null)
+            fi
+        fi
+
+        # Ensure size is numeric
+        if [[ ! "$size" =~ ^[0-9]+$ ]]; then
+            size=0
+        fi
+
         total_size=$((total_size + size))
-        ((file_count++))
+        file_count=$((file_count + 1))
         log_info "Final artifact: $file ($size bytes)"
     done < <(find "$dest_dir" -maxdepth 1 -type f -name '*.wasm' -print0)
 
@@ -306,3 +328,4 @@ verify_output() {
 verify_output "$DEST_DIR"
 
 log_info "Build process completed successfully"
+exit 0
