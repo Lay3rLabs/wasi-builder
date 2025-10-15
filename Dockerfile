@@ -36,7 +36,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo install --locked wasm-tools@${WASM_TOOLS_VERSION} \
     && cargo install --locked wkg@${WKG_VERSION}
 
-WORKDIR /work
+# Set umask for reproducible file permissions
+RUN umask 022
+
+WORKDIR /docker
 COPY entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
