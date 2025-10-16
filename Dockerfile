@@ -33,6 +33,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo install --locked wkg@${WKG_VERSION}
 
 WORKDIR /docker
-COPY entrypoint.sh /usr/local/bin/entrypoint
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

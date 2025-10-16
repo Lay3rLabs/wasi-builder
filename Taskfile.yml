@@ -24,7 +24,7 @@ tasks:
         --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}} 
         --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}} 
         --build-arg WKG_VERSION={{.WKG_VERSION}} 
-        -f {{.DOCKERFILE}} docker
+        -f {{.DOCKERFILE}} .
 
   test:
     desc: Test the built Docker image
