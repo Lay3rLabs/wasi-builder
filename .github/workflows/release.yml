@@ -1,4 +1,4 @@
-name: Release
+name: Publish Docker Image
 
 on:
   push:
@@ -6,52 +6,157 @@ on:
       - "v*"
     branches:
       - main
-
-env:
-  REGISTRY: ghcr.io
+  # You can enable the below to build on each PR push for testing,
+  # pull_request:
+  #   branches:
+  #     - main
 
 jobs:
-  release:
+  build_amd64:
+    name: Build and Push AMD64 Image
     runs-on: linux-8-core
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
-      - name: Checkout repository
+      - name: Checkout the repo
         uses: actions/checkout@v4
 
-      - name: Set VERSION
+      - name: Set IMAGE_TAG
+        shell: bash
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            IMAGE_TAG="latest"
           else
-            VERSION=$(git rev-parse --short $GITHUB_SHA)
+            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      - name: Dotenv Action
+        uses: falti/dotenv-action@v1.1.4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push AMD64 image
+        run: >
+          docker buildx build 
+            --platform linux/amd64 
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 
+            --build-arg RUST_VERSION=${{ env.RUST_VERSION }} 
+            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }} 
+            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }} 
+            --build-arg WKG_VERSION=${{ env.WKG_VERSION }} 
+            --push 
+            -f ${{ env.DOCKERFILE }} docker
+
+  build_arm64:
+    name: Build and Push ARM64 Image
+    runs-on: arm64-builder
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Set IMAGE_TAG
+        shell: bash
         run: |
-          task build IS_LOCAL=false VERSION="$VERSION" \
-            CACHE_FROM="type=gha,scope=wasi-builder" \
-            CACHE_TO="type=gha,scope=wasi-builder,mode=max"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            IMAGE_TAG="latest"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
+          fi
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+
+      - name: Dotenv Action
+        uses: falti/dotenv-action@v1.1.4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ARM64 image
+        run: >
+          docker buildx build
+            --platform linux/arm64 
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64 
+            --build-arg RUST_VERSION=${{ env.RUST_VERSION }} 
+            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }} 
+            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }} 
+            --build-arg WKG_VERSION=${{ env.WKG_VERSION }} 
+            --push 
+            -f ${{ env.DOCKERFILE }} docker
+
+  create_manifest:
+    name: Create and Push Multi-Arch Manifest
+    runs-on: ubuntu-latest
+    needs: [build_amd64, build_arm64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Set IMAGE_TAG
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            IMAGE_TAG="latest"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
+          fi
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+
+      - name: Set GIT_HASH
+        run: |
+          export GIT_HASH=$(git rev-parse --short "$GITHUB_SHA")
+          echo "GIT_HASH=${GIT_HASH}" >> $GITHUB_ENV
+
+      - name: Dotenv Action
+        uses: falti/dotenv-action@v1.1.4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: >
+          docker buildx imagetools create 
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} 
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.GIT_HASH }} 
+            ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 
+            ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64

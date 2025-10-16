@@ -15,12 +15,24 @@ A Docker-based builder for creating [WASI (WebAssembly System Interface)](https:
 ```bash
 # Install Task (if not already installed)
 curl -sL https://taskfile.dev/install.sh | sh
+```
 
-# Setup buildx for multi-arch builds
-task setup-buildx
+## Configuration
 
-# Clean up buildx
-task clean
+The project uses a `.env` file for configuration:
+
+```bash
+# Docker Configuration
+ORG=lay3rlabs
+IMAGE_NAME=wasi-builder
+REGISTRY=ghcr.io
+DOCKERFILE=Dockerfile
+
+# Build Tool Versions
+RUST_VERSION=1.90-slim-bookworm
+CARGO_COMPONENT_VERSION=0.21.1
+WASM_TOOLS_VERSION=1.238.1
+WKG_VERSION=0.12.0
 ```
 
 ## Quick Start
