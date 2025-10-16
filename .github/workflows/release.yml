@@ -54,15 +54,15 @@ jobs:
 
       - name: Build and push AMD64 image
         run: >
-          docker buildx build 
-            --platform linux/amd64 
-            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64 
-            --build-arg RUST_VERSION=${{ env.RUST_VERSION }} 
-            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }} 
-            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }} 
-            --build-arg WKG_VERSION=${{ env.WKG_VERSION }} 
-            --push 
-            -f ${{ env.DOCKERFILE }} docker
+          docker buildx build docker
+            --platform linux/amd64
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64
+            --build-arg RUST_VERSION=${{ env.RUST_VERSION }}
+            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
+            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+            --build-arg WKG_VERSION=${{ env.WKG_VERSION }}
+            --push
+            -f ${{ env.DOCKERFILE }}
 
   build_arm64:
     name: Build and Push ARM64 Image
@@ -106,15 +106,15 @@ jobs:
 
       - name: Build and push ARM64 image
         run: >
-          docker buildx build
-            --platform linux/arm64 
-            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64 
-            --build-arg RUST_VERSION=${{ env.RUST_VERSION }} 
-            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }} 
-            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }} 
-            --build-arg WKG_VERSION=${{ env.WKG_VERSION }} 
-            --push 
-            -f ${{ env.DOCKERFILE }} docker
+          docker buildx build docker
+            --platform linux/arm64
+            --tag ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
+            --build-arg RUST_VERSION=${{ env.RUST_VERSION }}
+            --build-arg CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
+            --build-arg WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+            --build-arg WKG_VERSION=${{ env.WKG_VERSION }}
+            --push
+            -f ${{ env.DOCKERFILE }}
 
   create_manifest:
     name: Create and Push Multi-Arch Manifest
