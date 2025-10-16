@@ -27,6 +27,7 @@ jobs:
         uses: falti/dotenv-action@v1.1.4
         with:
           export-variables: true
+          keys-case: bypass
 
       - name: Set IMAGE_TAG
         shell: bash
@@ -78,6 +79,7 @@ jobs:
         uses: falti/dotenv-action@v1.1.4
         with:
           export-variables: true
+          keys-case: bypass
 
       - name: Set IMAGE_TAG
         shell: bash
@@ -130,6 +132,7 @@ jobs:
         uses: falti/dotenv-action@v1.1.4
         with:
           export-variables: true
+          keys-case: bypass
 
       - name: Set IMAGE_TAG
         shell: bash
