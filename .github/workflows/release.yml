@@ -53,16 +53,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push AMD64 image
-        run: |
-          docker buildx build . \
-            --platform linux/amd64 \
-            --tag $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-amd64 \
-            --build-arg RUST_VERSION=$RUST_VERSION \
-            --build-arg CARGO_COMPONENT_VERSION=$CARGO_COMPONENT_VERSION \
-            --build-arg WASM_TOOLS_VERSION=$WASM_TOOLS_VERSION \
-            --build-arg WKG_VERSION=$WKG_VERSION \
-            --push \
-            -f $DOCKERFILE
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64
+          build-args: |
+            RUST_VERSION=${{ env.RUST_VERSION }}
+            CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
+            WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+            WKG_VERSION=${{ env.WKG_VERSION }}
 
   build_arm64:
     name: Build and Push ARM64 Image
@@ -105,16 +107,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ARM64 image
-        run: |
-          docker buildx build . \
-            --platform linux/arm64 \
-            --tag $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-arm64 \
-            --build-arg RUST_VERSION=$RUST_VERSION \
-            --build-arg CARGO_COMPONENT_VERSION=$CARGO_COMPONENT_VERSION \
-            --build-arg WASM_TOOLS_VERSION=$WASM_TOOLS_VERSION \
-            --build-arg WKG_VERSION=$WKG_VERSION \
-            --push \
-            -f $DOCKERFILE
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
+          build-args: |
+            RUST_VERSION=${{ env.RUST_VERSION }}
+            CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
+            WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+            WKG_VERSION=${{ env.WKG_VERSION }}
 
   create_manifest:
     name: Create and Push Multi-Arch Manifest
@@ -147,11 +151,6 @@ jobs:
           fi
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
-      - name: Set GIT_HASH
-        run: |
-          export GIT_HASH=$(git rev-parse --short "$GITHUB_SHA")
-          echo "GIT_HASH=${GIT_HASH}" >> $GITHUB_ENV
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -164,6 +163,7 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
+          export GIT_HASH=$(git rev-parse --short "$GITHUB_SHA")
           docker buildx imagetools create \
             --tag $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG \
             --tag $REGISTRY/$ORG/$IMAGE_NAME:$GIT_HASH \
