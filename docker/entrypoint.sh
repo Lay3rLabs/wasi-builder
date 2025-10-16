@@ -65,21 +65,19 @@ validate_input() {
 
 show_usage() {
     cat >&2 << EOF
-usage: entrypoint <relative-path-to-component-crate> --out-dir PATH [--debug]
+usage: entrypoint <relative-path-to-component-crate> [--debug]
 
 Builds WASI components from Rust source code.
 
 Arguments:
   <relative-path-to-component-crate>  Path to the component crate directory (relative to /docker)
-  --out-dir PATH                     Output directory for built artifacts
   --debug                            Build in debug mode (default: release)
   --help                             Show this help message
 
 
 Examples:
-  entrypoint my-component --out-dir ./build
-  entrypoint my-component --out-dir ./build --debug
-  entrypoint my-component --out-dir /absolute/path
+  entrypoint my-component
+  entrypoint my-component --debug
 
 EOF
 }
@@ -98,7 +96,7 @@ validate_input "$1"
 
 COMPONENT_DIR="$1"
 MODE="release"
-OUT_DIR=""
+OUT_DIR="output"
 shift || true
 
 # Check dependencies and environment
@@ -139,12 +137,6 @@ while [ $# -gt 0 ]; do
     case "${1:-}" in
         --debug)
             MODE="debug"; shift ;;
-        --out-dir)
-            if [ $# -lt 2 ]; then
-                log_error "--out-dir requires a value"
-                exit 2
-            fi
-            OUT_DIR="$2"; shift 2 ;;
         *)
             log_error "unknown argument: $1"
             show_usage
@@ -152,33 +144,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -z "$OUT_DIR" ]; then
-    log_error "--out-dir is required"
-    show_usage
-    exit 2
-fi
-
-# Validate output directory
-validate_output_dir() {
-    local out_dir="$1"
-
-    # Check for path traversal in output directory
-    if [[ "$out_dir" == *".."* ]]; then
-        log_error "Path traversal detected in output directory: $out_dir"
-        exit 2
-    fi
-}
-
-validate_output_dir "$OUT_DIR"
 
 DOCKER_DIR="/docker"
 TARGET_DIR="$DOCKER_DIR/target"
-
-if [[ "$OUT_DIR" = /* ]]; then
-    DEST_DIR="$OUT_DIR"
-else
-    DEST_DIR="$DOCKER_DIR/$OUT_DIR"
-fi
+DEST_DIR="$DOCKER_DIR/$OUT_DIR"
 
 # Create output directory with proper permissions
 if ! mkdir -p "$DEST_DIR"; then
@@ -188,8 +157,6 @@ fi
 
 log_info "Building component: $COMPONENT_DIR"
 log_info "Build mode: $MODE"
-log_info "Output directory: $DEST_DIR"
-log_info "Target directory: $TARGET_DIR"
 
 # Run environment checks
 check_environment
@@ -197,7 +164,6 @@ check_environment
 cd "$DOCKER_DIR/$COMPONENT_DIR"
 
 # Clean target directory for reproducible builds
-log_info "Cleaning target directory: $TARGET_DIR"
 if [[ -d "$TARGET_DIR" ]]; then
     rm -rf "$TARGET_DIR"
 fi
@@ -214,13 +180,9 @@ export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 export CARGO_TARGET_DIR="$TARGET_DIR"
 
 # Build the component
-log_info "Starting cargo component build in $MODE mode"
-
 build_args=(--locked)
 if [[ "$MODE" == "release" ]]; then
     build_args+=(--release)
-elif [[ "$MODE" != "debug" ]]; then
-    log_warn "Unknown build mode '$MODE'; defaulting to debug build"
 fi
 
 if ! cargo component build "${build_args[@]}"; then

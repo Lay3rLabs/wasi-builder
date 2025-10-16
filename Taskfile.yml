@@ -19,7 +19,7 @@ tasks:
     cmds:
       - >
         docker build
-        --tag {{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}} 
+        --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}} 
         --build-arg RUST_VERSION={{.RUST_VERSION}} 
         --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}} 
         --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}} 
@@ -97,7 +97,6 @@ tasks:
         -v {{.TEST_DIR}}/output:/docker/output
         {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}
         test-component
-        --out-dir /docker/output
       - chown -R $(id -u):$(id -g) {{.TEST_DIR}}/output 2>/dev/null || true
 
   test:verify:

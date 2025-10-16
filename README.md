@@ -47,17 +47,38 @@ task test
 
 ## Usage
 
-The container expects your Rust component to be mounted at `/docker/<component-name>` and will output built WASM files to the specified directory.
+The container expects your Rust component to be mounted at `/docker/<component-name>` and will output built WASM files to `/docker/output`.
 
 ### Container Arguments
 
 ```
-entrypoint <component-path> --out-dir <output-path> [--debug]
+entrypoint <component-path> [--debug]
 ```
 
 - `component-path`: Relative path to your Rust component (from `/docker`)
-- `--out-dir`: Output directory for WASM artifacts
 - `--debug`: Build in debug mode (default: release)
+
+### Examples
+
+```bash
+# Build a component in release mode (default)
+docker run --rm \
+  -v $(pwd)/my-component:/docker/my-component \
+  -v $(pwd)/output:/docker/output \
+  wasi-builder my-component
+
+# Build a component in debug mode
+docker run --rm \
+  -v $(pwd)/my-component:/docker/my-component \
+  -v $(pwd)/output:/docker/output \
+  wasi-builder my-component --debug
+
+# Build a component in a workspace
+docker run --rm \
+  -v $(pwd)/my-workspace:/docker/my-workspace \
+  -v $(pwd)/output:/docker/output \
+  wasi-builder my-workspace/components/my-component
+```
 
 ## Build Targets
 
