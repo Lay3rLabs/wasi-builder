@@ -150,16 +150,48 @@ export CARGO_PROFILE_RELEASE_DEBUG=false
 export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 export CARGO_TARGET_DIR="$TARGET_DIR"
 
-# Build the component
-build_args=(--locked)
-if [[ "$MODE" == "release" ]]; then
-    build_args+=(--release)
-fi
+# Find and build only component packages
+build_component_packages() {
+    local build_args=(--locked)
+    if [[ "$MODE" == "release" ]]; then
+        build_args+=(--release)
+    fi
 
-if ! cargo component build "${build_args[@]}"; then
-    log_error "Build failed"
-    exit 3
-fi
+    declare -A component_packages
+
+    # Find all Cargo.toml files and check for component metadata
+    while IFS= read -r -d '' cargo_toml; do
+        # Check if this package has component metadata
+        if grep -q '^\[package\.metadata\.component\]' "$cargo_toml" 2>/dev/null; then
+            local package_name=$(grep '^name = ' "$cargo_toml" | sed 's/name = "\(.*\)"/\1/' | head -1)
+            if [[ -n "$package_name" && -z "${component_packages[$package_name]:-}" ]]; then
+                component_packages[$package_name]="-p"
+                log_info "Found component package: $package_name"
+            fi
+        fi
+    done < <(find /docker -name "Cargo.toml" -type f -print0 | sort -z)
+
+    if [[ ${#component_packages[@]} -eq 0 ]]; then
+        log_error "No component packages found in workspace"
+        exit 2
+    fi
+
+    log_info "Building ${#component_packages[@]} component package(s)"
+
+    # Convert array to build arguments
+    local package_build_args=()
+    for package_name in "${!component_packages[@]}"; do
+        package_build_args+=("-p" "$package_name")
+    done
+
+    if ! cargo component build "${build_args[@]}" "${package_build_args[@]}"; then
+        log_error "Build failed"
+        exit 3
+    fi
+}
+
+# Build the components
+build_component_packages
 
 log_info "Build completed successfully"
 
@@ -265,7 +297,6 @@ verify_output "$DEST_DIR"
 
 # Fix ownership of generated files for host user access
 if [[ -n "${HOST_UID:-}" ]] && [[ -n "${HOST_GID:-}" ]]; then
-    log_debug "Setting file ownership to host user: $HOST_UID:$HOST_GID"
     find /docker -type f -user root -exec chown "$HOST_UID:$HOST_GID" {} \;
     find /docker -type d -user root -exec chown "$HOST_UID:$HOST_GID" {} \;
 fi
