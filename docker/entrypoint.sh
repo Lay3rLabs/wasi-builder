@@ -162,7 +162,7 @@ build_component_packages() {
     # Find all Cargo.toml files and check for component metadata
     while IFS= read -r -d '' cargo_toml; do
         # Check if this package has component metadata
-        if grep -q '^\[package\.metadata\.component\]' "$cargo_toml" 2>/dev/null; then
+        if grep -q '^[[:space:]]*\[package\.metadata\.component\]' "$cargo_toml" 2>/dev/null; then
             local package_name=$(grep '^name = ' "$cargo_toml" | sed 's/name = "\(.*\)"/\1/' | head -1)
             if [[ -n "$package_name" && -z "${component_packages[$package_name]:-}" ]]; then
                 component_packages[$package_name]="-p"
