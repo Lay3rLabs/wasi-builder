@@ -16,6 +16,8 @@ tasks:
     desc: Build Docker image locally for testing
     vars:
       VERSION: '{{.VERSION | default "local"}}'
+    env:
+      DOCKER_BUILDKIT: 1
     cmds:
       - >
         docker build
@@ -93,11 +95,10 @@ tasks:
       vars: [TEST_DIR, VERSION]
     cmds:
       - >
-        docker run --rm -v {{.TEST_DIR}}:/docker/test-component
+        docker run --rm -v {{.TEST_DIR}}:/docker
         -v {{.TEST_DIR}}/output:/docker/output
+        -e HOST_UID=$(id -u) -e HOST_GID=$(id -g)
         {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}
-        test-component
-      - chown -R $(id -u):$(id -g) {{.TEST_DIR}}/output 2>/dev/null || true
 
   test:verify:
     desc: Verify test results
