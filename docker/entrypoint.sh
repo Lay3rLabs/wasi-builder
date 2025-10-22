@@ -297,8 +297,7 @@ verify_output "$DEST_DIR"
 
 # Fix ownership of generated files for host user access
 if [[ -n "${HOST_UID:-}" ]] && [[ -n "${HOST_GID:-}" ]]; then
-    find /docker -type f -user root -exec chown "$HOST_UID:$HOST_GID" {} \;
-    find /docker -type d -user root -exec chown "$HOST_UID:$HOST_GID" {} \;
+    find /docker \( -type f -o -type d \) -user root -exec chown "$HOST_UID:$HOST_GID" {} +
 fi
 
 log_info "Build process completed successfully"
