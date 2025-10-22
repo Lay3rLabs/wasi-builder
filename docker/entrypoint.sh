@@ -41,63 +41,52 @@ cleanup() {
 
 trap cleanup EXIT
 
-# Validate input arguments
-validate_input() {
-    local component_dir="$1"
-
-    if [[ -z "$component_dir" ]]; then
-        log_error "Component directory cannot be empty"
-        exit 1
-    fi
-
-    # Check for path traversal attempts
-    if [[ "$component_dir" == *".."* ]]; then
-        log_error "Path traversal detected in component directory: $component_dir"
-        exit 2
-    fi
-
-    # Check for absolute paths (should be relative)
-    if [[ "$component_dir" == /* ]]; then
-        log_error "Component directory must be relative path: $component_dir"
-        exit 2
-    fi
-}
-
+# Show usage information
 show_usage() {
     cat >&2 << EOF
-usage: entrypoint <relative-path-to-component-crate> [--debug]
+usage: entrypoint [--debug]
 
 Builds WASI components from Rust source code.
 
 Arguments:
-  <relative-path-to-component-crate>  Path to the component crate directory (relative to /docker)
   --debug                            Build in debug mode (default: release)
   --help                             Show this help message
 
 
 Examples:
-  entrypoint my-component
-  entrypoint my-component --debug
+  entrypoint
+  entrypoint --debug
+
+The builder will automatically detect and build:
+- Single components
+- Cargo workspaces
+- Mixed projects with multiple components
+
+All compiled .wasm files will be collected in the output directory.
 
 EOF
 }
-
-if [ $# -lt 1 ]; then
-    show_usage
-    exit 1
-fi
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     show_usage
     exit 0
 fi
 
-validate_input "$1"
-
-COMPONENT_DIR="$1"
+# Default configuration
 MODE="release"
 OUT_DIR="output"
-shift || true
+
+# Parse command line arguments
+while [ $# -gt 0 ]; do
+    case "${1:-}" in
+        --debug)
+            MODE="debug"; shift ;;
+        *)
+            log_error "unknown argument: $1"
+            show_usage
+            exit 2 ;;
+    esac
+done
 
 # Check dependencies and environment
 check_environment() {
@@ -119,30 +108,12 @@ check_environment() {
         exit 5
     fi
 
-    # Check if component directory exists
-    local component_path="/docker/$COMPONENT_DIR"
-    if [[ ! -d "$component_path" ]]; then
-        log_error "Component directory does not exist: $component_path"
-        exit 2
-    fi
-
-    # Check if Cargo.toml exists in component directory
-    if [[ ! -f "$component_path/Cargo.toml" ]]; then
-        log_error "Cargo.toml not found in component directory: $component_path"
+    # Check if there are any Cargo.toml files to build
+    if ! find /docker -name "Cargo.toml" -type f | head -1 | grep -q .; then
+        log_error "No Cargo.toml files found in /docker directory. Nothing to build."
         exit 2
     fi
 }
-
-while [ $# -gt 0 ]; do
-    case "${1:-}" in
-        --debug)
-            MODE="debug"; shift ;;
-        *)
-            log_error "unknown argument: $1"
-            show_usage
-            exit 2 ;;
-    esac
-done
 
 
 DOCKER_DIR="/docker"
@@ -155,13 +126,13 @@ if ! mkdir -p "$DEST_DIR"; then
     exit 2
 fi
 
-log_info "Building component: $COMPONENT_DIR"
 log_info "Build mode: $MODE"
 
 # Run environment checks
 check_environment
 
-cd "$DOCKER_DIR/$COMPONENT_DIR"
+# Change to /docker root to build everything found
+cd "$DOCKER_DIR"
 
 # Clean target directory for reproducible builds
 if [[ -d "$TARGET_DIR" ]]; then
@@ -179,16 +150,48 @@ export CARGO_PROFILE_RELEASE_DEBUG=false
 export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 export CARGO_TARGET_DIR="$TARGET_DIR"
 
-# Build the component
-build_args=(--locked)
-if [[ "$MODE" == "release" ]]; then
-    build_args+=(--release)
-fi
+# Find and build only component packages
+build_component_packages() {
+    local build_args=(--locked)
+    if [[ "$MODE" == "release" ]]; then
+        build_args+=(--release)
+    fi
 
-if ! cargo component build "${build_args[@]}"; then
-    log_error "Build failed for component: $COMPONENT_DIR"
-    exit 3
-fi
+    declare -A component_packages
+
+    # Find all Cargo.toml files and check for component metadata
+    while IFS= read -r -d '' cargo_toml; do
+        # Check if this package has component metadata
+        if grep -q '^[[:space:]]*\[package\.metadata\.component\]' "$cargo_toml" 2>/dev/null; then
+            local package_name=$(grep '^name = ' "$cargo_toml" | sed 's/name = "\(.*\)"/\1/' | head -1)
+            if [[ -n "$package_name" && -z "${component_packages[$package_name]:-}" ]]; then
+                component_packages[$package_name]="-p"
+                log_info "Found component package: $package_name"
+            fi
+        fi
+    done < <(find /docker -name "Cargo.toml" -type f -print0 | sort -z)
+
+    if [[ ${#component_packages[@]} -eq 0 ]]; then
+        log_error "No component packages found in workspace"
+        exit 2
+    fi
+
+    log_info "Building ${#component_packages[@]} component package(s)"
+
+    # Convert array to build arguments
+    local package_build_args=()
+    for package_name in "${!component_packages[@]}"; do
+        package_build_args+=("-p" "$package_name")
+    done
+
+    if ! cargo component build "${build_args[@]}" "${package_build_args[@]}"; then
+        log_error "Build failed"
+        exit 3
+    fi
+}
+
+# Build the components
+build_component_packages
 
 log_info "Build completed successfully"
 
@@ -291,6 +294,11 @@ verify_output() {
 
 # Verify output
 verify_output "$DEST_DIR"
+
+# Fix ownership of generated files for host user access
+if [[ -n "${HOST_UID:-}" ]] && [[ -n "${HOST_GID:-}" ]]; then
+    find /docker \( -type f -o -type d \) -user root -exec chown "$HOST_UID:$HOST_GID" {} +
+fi
 
 log_info "Build process completed successfully"
 exit 0

@@ -47,38 +47,39 @@ task test
 
 ## Usage
 
-The container expects your Rust component to be mounted at `/docker/<component-name>` and will output built WASM files to `/docker/output`.
+The container automatically detects and builds all Rust components found in the mounted `/docker` directory. Built WASM files are output to `/docker/output`.
 
 ### Container Arguments
 
 ```
-entrypoint <component-path> [--debug]
+entrypoint [--debug]
 ```
 
-- `component-path`: Relative path to your Rust component (from `/docker`)
 - `--debug`: Build in debug mode (default: release)
+- `--help`: Show usage information
 
 ### Examples
 
 ```bash
-# Build a component in release mode (default)
+# Build all components in release mode (default)
 docker run --rm \
-  -v $(pwd)/my-component:/docker/my-component \
+  -v $(pwd)/my-project:/docker \
   -v $(pwd)/output:/docker/output \
-  wasi-builder my-component
+  -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+  wasi-builder
 
-# Build a component in debug mode
+# Build all components in debug mode
 docker run --rm \
-  -v $(pwd)/my-component:/docker/my-component \
+  -v $(pwd)/my-project:/docker \
   -v $(pwd)/output:/docker/output \
-  wasi-builder my-component --debug
-
-# Build a component in a workspace
-docker run --rm \
-  -v $(pwd)/my-workspace:/docker/my-workspace \
-  -v $(pwd)/output:/docker/output \
-  wasi-builder my-workspace/components/my-component
+  -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+  wasi-builder --debug
 ```
+
+The builder will automatically detect and build:
+- Single components
+- Cargo workspaces
+- Mixed projects with multiple components
 
 ## Build Targets
 
