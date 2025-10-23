@@ -65,7 +65,6 @@ jobs:
             CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
             WKG_VERSION=${{ env.WKG_VERSION }}
-            PLATFORM=${{ env.PLATFORM }}
 
   build_arm64:
     name: Build and Push ARM64 Image
@@ -120,7 +119,6 @@ jobs:
             CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
             WKG_VERSION=${{ env.WKG_VERSION }}
-            PLATFORM=${{ env.PLATFORM }}
 
   create_manifest:
     name: Create and Push Multi-Arch Manifest

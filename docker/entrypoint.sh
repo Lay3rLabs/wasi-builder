@@ -148,8 +148,6 @@ export CARGO_PROFILE_RELEASE_PANIC="abort"
 export CARGO_PROFILE_RELEASE_STRIP="debuginfo"
 export CARGO_PROFILE_RELEASE_DEBUG=false
 export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
-export SOURCE_DATE_EPOCH=0 
-export LC_ALL=C.UTF-8
 export CARGO_TARGET_DIR="$TARGET_DIR"
 
 # Find and build only component packages

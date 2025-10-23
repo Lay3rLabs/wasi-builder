@@ -25,8 +25,7 @@ tasks:
         --build-arg RUST_VERSION={{.RUST_VERSION}} 
         --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}} 
         --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}} 
-        --build-arg WKG_VERSION={{.WKG_VERSION}}
-        --build-arg PLATFORM={{.PLATFORM}}
+        --build-arg WKG_VERSION={{.WKG_VERSION}} 
         -f {{.DOCKERFILE}} .
 
   test:
