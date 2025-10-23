@@ -44,47 +44,58 @@ trap cleanup EXIT
 # Show usage information
 show_usage() {
     cat >&2 << EOF
-usage: entrypoint [--debug]
+usage: entrypoint [COMPONENT_NAME] [--debug]
 
 Builds WASI components from Rust source code.
 
 Arguments:
+  COMPONENT_NAME                     Build only the specified component package name (optional)
   --debug                            Build in debug mode (default: release)
   --help                             Show this help message
-
 
 Examples:
   entrypoint
   entrypoint --debug
+  entrypoint my-component
+  entrypoint my-component --debug
 
 The builder will automatically detect and build:
 - Single components
 - Cargo workspaces
 - Mixed projects with multiple components
 
+When COMPONENT_NAME is provided, only the specified component will be built.
+If not provided, all component packages found in the workspace will be built.
+
 All compiled .wasm files will be collected in the output directory.
 
 EOF
 }
 
-if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
-    show_usage
-    exit 0
-fi
 
 # Default configuration
 MODE="release"
 OUT_DIR="output"
+COMPONENT_NAME=""
 
 # Parse command line arguments
 while [ $# -gt 0 ]; do
     case "${1:-}" in
         --debug)
             MODE="debug"; shift ;;
-        *)
-            log_error "unknown argument: $1"
+        --help|-h)
             show_usage
-            exit 2 ;;
+            exit 0 ;;
+        *)
+            if [[ -z "$COMPONENT_NAME" && ! "$1" =~ ^-- ]]; then
+                COMPONENT_NAME="$1"
+                shift
+            else
+                log_error "unknown argument: $1"
+                show_usage
+                exit 2
+            fi
+            ;;
     esac
 done
 
@@ -160,24 +171,41 @@ build_component_packages() {
 
     declare -A component_packages
 
-    # Find all Cargo.toml files and check for component metadata
+    # Find all component packages
     while IFS= read -r -d '' cargo_toml; do
         # Check if this package has component metadata
         if grep -q '^[[:space:]]*\[package\.metadata\.component\]' "$cargo_toml" 2>/dev/null; then
             local package_name=$(grep '^name = ' "$cargo_toml" | sed 's/name = "\(.*\)"/\1/' | head -1)
             if [[ -n "$package_name" && -z "${component_packages[$package_name]:-}" ]]; then
-                component_packages[$package_name]="-p"
-                log_info "Found component package: $package_name"
+                # If COMPONENT_NAME is specified, only include that package
+                if [[ -n "${COMPONENT_NAME:-}" ]]; then
+                    if [[ "$package_name" == "$COMPONENT_NAME" ]]; then
+                        component_packages[$package_name]="-p"
+                        log_info "Found specified component package: $package_name"
+                        break
+                    fi
+                else
+                    component_packages[$package_name]="-p"
+                    log_info "Found component package: $package_name"
+                fi
             fi
         fi
     done < <(find /docker -name "Cargo.toml" -type f -print0 | sort -z)
 
     if [[ ${#component_packages[@]} -eq 0 ]]; then
-        log_error "No component packages found in workspace"
+        if [[ -n "${COMPONENT_NAME:-}" ]]; then
+            log_error "Component package '$COMPONENT_NAME' not found in workspace"
+        else
+            log_error "No component packages found in workspace"
+        fi
         exit 2
     fi
 
-    log_info "Building ${#component_packages[@]} component package(s)"
+    if [[ -n "${COMPONENT_NAME:-}" ]]; then
+        log_info "Building specific component: $COMPONENT_NAME"
+    else
+        log_info "Building ${#component_packages[@]} component package(s)"
+    fi
 
     # Convert array to build arguments
     local package_build_args=()
