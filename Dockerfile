@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1.7-labs
 
 ARG RUST_VERSION
+ARG PLATFORM
 
-FROM rust:${RUST_VERSION}
+FROM --platform=$PLATFORM rust:${RUST_VERSION}
 
 ARG TARGET=wasm32-wasip1
 ARG CARGO_COMPONENT_VERSION
