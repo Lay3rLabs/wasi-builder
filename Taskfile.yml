@@ -21,11 +21,11 @@ tasks:
     cmds:
       - >
         docker build
-        --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}} 
-        --build-arg RUST_VERSION={{.RUST_VERSION}} 
-        --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}} 
-        --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}} 
-        --build-arg WKG_VERSION={{.WKG_VERSION}} 
+        --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}
+        --build-arg RUST_VERSION={{.RUST_VERSION}}
+        --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}}
+        --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}}
+        --build-arg WKG_VERSION={{.WKG_VERSION}}
         -f {{.DOCKERFILE}} .
 
   test:
@@ -95,7 +95,7 @@ tasks:
       vars: [TEST_DIR, VERSION]
     cmds:
       - >
-        docker run --rm -v {{.TEST_DIR}}:/docker
+        docker run --rm --platform "{{OS}}/{{ARCH}}" -v {{.TEST_DIR}}:/docker
         -v {{.TEST_DIR}}/output:/docker/output
         -e HOST_UID=$(id -u) -e HOST_GID=$(id -g)
         {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}

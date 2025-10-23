@@ -149,6 +149,7 @@ export CARGO_PROFILE_RELEASE_STRIP="debuginfo"
 export CARGO_PROFILE_RELEASE_DEBUG=false
 export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 export CARGO_TARGET_DIR="$TARGET_DIR"
+export SOURCE_DATE_EPOCH=0 
 
 # Find and build only component packages
 build_component_packages() {
@@ -220,19 +221,19 @@ copy_artifacts() {
 
     for file in "${wasm_files[@]}"; do
         local filename=$(basename "$file")
-        log_info "Copying artifact: $filename"
-        if cp -f "$file" "$dest_dir/"; then
-            if chmod 0644 "$dest_dir/$filename"; then
-                ((files_copied++))
-            else
-                log_warn "Failed to set permissions for: $filename"
-                # Still count as success since file was copied
-                ((files_copied++))
+        log_info "Processing artifact: $filename"
+
+        # Strip the WASM file directly to output location
+        if ! wasm-tools strip -a "$file" -o "$dest_dir/$filename"; then
+            log_warn "Failed to strip artifact: $filename, using original"
+            # If stripping fails, copy the original file
+            if ! cp -f "$file" "$dest_dir/$filename"; then
+                log_error "Failed to copy artifact: $filename"
+                exit 4
             fi
-        else
-            log_error "Failed to copy artifact: $filename"
-            exit 4
         fi
+
+        ((files_copied++))
     done
 
     printf '%s\n' "$files_copied"
