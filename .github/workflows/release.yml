@@ -62,9 +62,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64
           build-args: |
             RUST_VERSION=${{ env.RUST_VERSION }}
-            CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
-            WKG_VERSION=${{ env.WKG_VERSION }}
 
   build_arm64:
     name: Build and Push ARM64 Image
@@ -116,9 +114,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
           build-args: |
             RUST_VERSION=${{ env.RUST_VERSION }}
-            CARGO_COMPONENT_VERSION=${{ env.CARGO_COMPONENT_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
-            WKG_VERSION=${{ env.WKG_VERSION }}
 
   create_manifest:
     name: Create and Push Multi-Arch Manifest

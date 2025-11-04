@@ -4,10 +4,8 @@ ARG RUST_VERSION
 
 FROM rust:${RUST_VERSION}
 
-ARG TARGET=wasm32-wasip1
-ARG CARGO_COMPONENT_VERSION
+ARG TARGET=wasm32-wasip2
 ARG WASM_TOOLS_VERSION
-ARG WKG_VERSION
 
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
@@ -28,9 +26,7 @@ RUN apt-get update \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     rustup target add ${TARGET} \
-    && cargo install --locked cargo-component@${CARGO_COMPONENT_VERSION} \
-    && cargo install --locked wasm-tools@${WASM_TOOLS_VERSION} \
-    && cargo install --locked wkg@${WKG_VERSION}
+    && cargo install --locked wasm-tools@${WASM_TOOLS_VERSION}
 
 WORKDIR /docker
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint

@@ -23,9 +23,7 @@ tasks:
         docker build
         --tag {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}
         --build-arg RUST_VERSION={{.RUST_VERSION}}
-        --build-arg CARGO_COMPONENT_VERSION={{.CARGO_COMPONENT_VERSION}}
         --build-arg WASM_TOOLS_VERSION={{.WASM_TOOLS_VERSION}}
-        --build-arg WKG_VERSION={{.WKG_VERSION}}
         -f {{.DOCKERFILE}} .
 
   test:
@@ -54,18 +52,27 @@ tasks:
     cmds:
       - rm -rf {{.TEST_DIR}}
       - mkdir -p {{.TEST_DIR}}/output
-      - mkdir -p {{.TEST_DIR}}/templates/src
-      - mkdir -p {{.TEST_DIR}}/templates/wit
+      - mkdir -p {{.TEST_DIR}}/test-component/src
+      - mkdir -p {{.TEST_DIR}}/test-component/wit
       - |
-        cat > {{.TEST_DIR}}/templates/src/lib.rs << 'EOF'
-        #[no_mangle]
-        pub extern "C" fn greet() -> *const u8 {
-            let message = "Hello from WASI component!";
-            message.as_ptr()
+        cat > {{.TEST_DIR}}/test-component/src/lib.rs << 'EOF'
+        wit_bindgen::generate!({
+            world: "hello",
+            path: "wit/world.wit",
+        });
+
+        struct Component;
+
+        impl Guest for Component {
+            fn greet() -> String {
+                "Hello from WASI component!".to_owned()
+            }
         }
+
+        export!(Component);
         EOF
       - |
-        cat > {{.TEST_DIR}}/templates/wit/world.wit << 'EOF'
+        cat > {{.TEST_DIR}}/test-component/wit/world.wit << 'EOF'
         package test:component;
 
         world hello {
@@ -73,7 +80,7 @@ tasks:
         }
         EOF
       - |
-        cat > {{.TEST_DIR}}/templates/Cargo.toml << 'EOF'
+        cat > {{.TEST_DIR}}/test-component/Cargo.toml << 'EOF'
         [package]
         name = "test-component"
         version = "0.1.0"
@@ -83,11 +90,9 @@ tasks:
         crate-type = ["cdylib"]
 
         [dependencies]
-
-        [package.metadata.component]
-        package = "test:component"
+        wit-bindgen = "0.24"
         EOF
-      - cd {{.TEST_DIR}} && cargo init --name test-component --lib && cp -r templates/* . && cargo generate-lockfile
+      - cd {{.TEST_DIR}}/test-component && cargo generate-lockfile
 
   test:run:
     desc: Run the Docker container

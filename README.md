@@ -1,10 +1,10 @@
 # WASI Builder
 
-A Docker-based builder for creating [WASI (WebAssembly System Interface)](https://wasi.dev/) components from Rust source code using the [cargo-component](https://github.com/bytecodealliance/cargo-component) tool.
+A Docker-based builder for creating [WASI (WebAssembly System Interface)](https://wasi.dev/) components from Rust source code using the officially supported `cargo build --target wasm32-wasip2` toolchain.
 
 ## Features
 
-- Builds WASI components from Rust crates
+- Builds WASI Preview 2 components from Rust crates
 - Supports both debug and release modes
 - Secure sandboxed build environment
 - Reproducible builds with fixed versions
@@ -30,9 +30,7 @@ DOCKERFILE=Dockerfile
 
 # Build Tool Versions
 RUST_VERSION=1.90-slim-bookworm
-CARGO_COMPONENT_VERSION=0.21.1
-WASM_TOOLS_VERSION=1.238.1
-WKG_VERSION=0.12.0
+WASM_TOOLS_VERSION=1.240.0
 ```
 
 ## Quick Start
@@ -81,10 +79,13 @@ The builder will automatically detect and build:
 - Cargo workspaces
 - Mixed projects with multiple components
 
-## Build Targets
+## Configuration Options
 
-- Target: `wasm32-wasip1`
-- Output: `.wasm` files compatible with WASI runtime
+- **Target**: `wasm32-wasip2`
+- **Output**: Stripped `.wasm` component files compatible with WASI Preview 2
+- **Build Mode**: Release (optimized) or Debug
+- **Permissions**: Automatically fixes file ownership for host user access
+- **WIT Dependencies**: Users are responsible for managing their own WIT dependencies
 
 ## License
 
