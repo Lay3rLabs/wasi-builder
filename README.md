@@ -50,11 +50,18 @@ The container automatically detects and builds all Rust components found in the 
 ### Container Arguments
 
 ```
-entrypoint [--debug]
+entrypoint [COMPONENT_NAME] [--debug]
 ```
 
+- `COMPONENT_NAME`: Build only the specified component package (optional)
 - `--debug`: Build in debug mode (default: release)
 - `--help`: Show usage information
+
+### Environment Variables
+
+- `COMPONENTS_DIR`: Subdirectory within `/docker` to search for components (optional)
+- `EXCLUDE_FOLDERS`: Comma-separated list of folder names to skip (optional)
+- `HOST_UID` / `HOST_GID`: Fix output file ownership to these IDs (optional)
 
 ### Examples
 

@@ -100,7 +100,7 @@ tasks:
       vars: [TEST_DIR, VERSION]
     cmds:
       - >
-        docker run --rm --platform "{{OS}}/{{ARCH}}" -v {{.TEST_DIR}}:/docker
+        docker run --rm --platform "linux/{{ARCH}}" -v {{.TEST_DIR}}:/docker
         -v {{.TEST_DIR}}/output:/docker/output
         -e HOST_UID=$(id -u) -e HOST_GID=$(id -g)
         {{.REGISTRY}}/{{.ORG}}/{{.IMAGE_NAME}}:{{.VERSION}}

@@ -12,9 +12,39 @@ on:
   #     - main
 
 jobs:
+  prepare:
+    name: Prepare Build Variables
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.image_tag }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Dotenv Action
+        uses: falti/dotenv-action@v1.1.4
+        with:
+          export-variables: true
+          keys-case: bypass
+
+      - name: Set IMAGE_TAG
+        id: set_tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            IMAGE_TAG="latest"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
+          fi
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
   build_amd64:
     name: Build and Push AMD64 Image
     runs-on: linux-8-core
+    needs: [prepare]
     permissions:
       contents: read
       packages: write
@@ -28,19 +58,6 @@ jobs:
         with:
           export-variables: true
           keys-case: bypass
-
-      - name: Set IMAGE_TAG
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME#v}"
-            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            IMAGE_TAG="latest"
-          else
-            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
-          fi
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,14 +76,17 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-amd64
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.image_tag }}-amd64
           build-args: |
             RUST_VERSION=${{ env.RUST_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
 
   build_arm64:
     name: Build and Push ARM64 Image
     runs-on: arm64-builder
+    needs: [prepare]
     permissions:
       contents: read
       packages: write
@@ -80,19 +100,6 @@ jobs:
         with:
           export-variables: true
           keys-case: bypass
-
-      - name: Set IMAGE_TAG
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME#v}"
-            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            IMAGE_TAG="latest"
-          else
-            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
-          fi
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -111,15 +118,17 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           platforms: linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-arm64
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.image_tag }}-arm64
           build-args: |
             RUST_VERSION=${{ env.RUST_VERSION }}
             WASM_TOOLS_VERSION=${{ env.WASM_TOOLS_VERSION }}
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
 
   create_manifest:
     name: Create and Push Multi-Arch Manifest
     runs-on: ubuntu-latest
-    needs: [build_amd64, build_arm64]
+    needs: [prepare, build_amd64, build_arm64]
     permissions:
       contents: read
       packages: write
@@ -134,19 +143,6 @@ jobs:
           export-variables: true
           keys-case: bypass
 
-      - name: Set IMAGE_TAG
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME#v}"
-            IMAGE_TAG="${TAG//[^a-zA-Z0-9_.-]/-}"
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            IMAGE_TAG="latest"
-          else
-            IMAGE_TAG="${GITHUB_REF_NAME//\//-}"
-          fi
-          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -158,10 +154,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push multi-arch manifest
+        env:
+          IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
         run: |
           export GIT_HASH=$(git rev-parse --short "$GITHUB_SHA")
           docker buildx imagetools create \
-            --tag $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG \
-            --tag $REGISTRY/$ORG/$IMAGE_NAME:$GIT_HASH \
-            $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-amd64 \
-            $REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-arm64
+            --tag "$REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG" \
+            --tag "$REGISTRY/$ORG/$IMAGE_NAME:$GIT_HASH" \
+            "$REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-amd64" \
+            "$REGISTRY/$ORG/$IMAGE_NAME:$IMAGE_TAG-arm64"

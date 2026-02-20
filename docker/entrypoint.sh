@@ -73,6 +73,11 @@ The builder will automatically detect and build:
 When COMPONENT_NAME is provided, only the specified component will be built.
 If not provided, all component packages found in the workspace will be built.
 
+Environment Variables:
+  COMPONENTS_DIR                     Subdirectory within /docker to search for components (optional)
+  EXCLUDE_FOLDERS                    Comma-separated list of folder names to skip (optional)
+  HOST_UID / HOST_GID                Fix output file ownership to these IDs (optional)
+
 All compiled .wasm files will be collected in the output directory.
 
 EOF
@@ -102,7 +107,7 @@ while [ $# -gt 0 ]; do
             else
                 log_error "unknown argument: $1"
                 show_usage
-                exit 2
+                exit 1
             fi
             ;;
     esac
@@ -256,15 +261,18 @@ build_component_packages() {
     fi
 
     # First build host dependencies scoped to component packages (for build scripts, proc macros, etc.)
-    local host_package_args=()
-    for package_name in "${COMPONENT_ORDER[@]}"; do
-        host_package_args+=(-p "$package_name")
-    done
+    # This requires a workspace Cargo.toml at the docker root to use -p flags
+    if [[ -f "$DOCKER_DIR/Cargo.toml" ]] && grep -q '\[workspace\]' "$DOCKER_DIR/Cargo.toml"; then
+        local host_package_args=()
+        for package_name in "${COMPONENT_ORDER[@]}"; do
+            host_package_args+=(-p "$package_name")
+        done
 
-    if [[ ${#host_package_args[@]} -gt 0 ]]; then
-        log_info "Building host dependencies for ${#COMPONENT_ORDER[@]} component package(s)"
-        if ! cargo build "${host_build_args[@]}" "${host_package_args[@]}"; then
-            log_warn "Host dependency build failed, continuing with component build"
+        if [[ ${#host_package_args[@]} -gt 0 ]]; then
+            log_info "Building host dependencies for ${#COMPONENT_ORDER[@]} component package(s)"
+            if ! cargo build "${host_build_args[@]}" "${host_package_args[@]}"; then
+                log_warn "Host dependency build failed, continuing with component build"
+            fi
         fi
     fi
 
@@ -336,7 +344,7 @@ load_component_packages() {
 
         # Extract package name from Cargo.toml
         local package_name
-        package_name=$(grep '^name = ' "$component_dir/Cargo.toml" | head -1 | sed 's/name = "//;s/"//' | tr -d '\r\n')
+        package_name=$(awk '/^\[package\]/{found=1} found && /^name[ \t]*=/{gsub(/.*=[ \t]*"/, ""); gsub(/".*/, ""); print; exit}' "$component_dir/Cargo.toml")
 
         if [[ -z "$package_name" ]]; then
             log_warn "Skipping $component_name: could not extract package name from Cargo.toml"
