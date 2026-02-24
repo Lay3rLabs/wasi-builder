@@ -170,7 +170,7 @@ fi
 # Ensure reproducible builds with secure defaults
 umask 022
 export CARGO_BUILD_INCREMENTAL=false
-export CARGO_PROFILE_RELEASE_LTO="thin"
+export CARGO_PROFILE_RELEASE_LTO="fat"
 export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 export CARGO_PROFILE_RELEASE_PANIC="abort"
 export CARGO_PROFILE_RELEASE_STRIP="debuginfo"
